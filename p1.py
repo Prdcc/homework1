@@ -46,9 +46,9 @@ def isPrime(n): # accurate as long as n<2'152'302'898'747
 
 def nextPrime(n):
     """
-    Find next prime after 2n+1
+    Find next prime after n 
     """
-    index = 2*n+1
+    index = n +1 - (n%2) #make n odd if it's even
     while(not isPrime(index)):
         index += 2
     return index
@@ -79,11 +79,9 @@ def toLiteral(intTuple):
 
 def getHash(intTuple, q):
     currHash = 0
-    power = 1
-    for s in intTuple[::-1]:
-        currHash = (currHash + power * s) % q
-        power = (4*power) % q
-    currHash = currHash % q
+    global powers
+    for i in range(len(intTuple)):
+        currHash = (currHash + powers[i]*intTuple[i]) % q
     return currHash
 
 
@@ -124,7 +122,85 @@ def ksearchv2(S,k,f,x):
                 
                 if("".join(kmerMutated) in occurrences):
                     L3[-1] += len(occurrences[kmer])
-                    break  
+    return L1,L2,L3
+
+def getHashStr(S, q):
+    return getHash([toNumeral(c) for c in S],q)
+
+def ksearchstr(S,k,f,x):
+    """
+    Search for frequently-occurring k-mers within a DNA sequence
+    and find the number of point-x mutations for each frequently
+    occurring k-mer.
+    Input:
+    S: A string consisting of A,C,G, and Ts
+    k: The size of k-mer to search for (an integer)
+    f: frequency parameter -- the search should identify k-mers which
+    occur at least f times in S
+    x: the location within each frequently-occurring k-mer where
+    point-x mutations will differ.
+
+    Output:
+    L1: list containing the strings corresponding to the frequently-occurring k-mers
+    L2: list containing the locations of the frequent k-mers
+    L3: list containing the number of point-x mutations for each k-mer in L1.
+
+    Discussion: Add analysis here
+    """
+    q = 472884059     #just over 2^60, a prime, chosen so that all computations are kept below 64 bit precision 
+    global powers 
+    powers = tuple(pow(4,i,q) for i in reversed(range(k)))
+    bm = pow(4,k,q)
+    occurrences = {}     #initialise empty dictionary
+    nucleotides = "ATGC"
+    S = [c for c in S if c in nucleotides]
+    length=len(S)
+    if(length < k):
+        return [],[],[]
+    print("Starting search")
+
+    currHash = getHashStr(S[:k],q)
+    occurrences[currHash] = [(S[:k],[0])]
+
+    for index in range(1,length-k+1):
+        if(index%100000 == 0):          #delete this later
+            print("Progress: ",(index / length)*100,"%")
+        currHash = (4*currHash- toNumeral(S[index-1])*bm + toNumeral(S[index-1+k])) % q
+        kmer = S[index : index+k]
+
+        if currHash in occurrences:     
+            toAdd = True                                #check for collisions
+            for i in range(len(occurrences[currHash])):
+                if(kmer == occurrences[currHash][i][0]):
+                    occurrences[currHash][i][1].append(index)
+                    toAdd = False
+                    break
+            
+            if(toAdd):
+                occurrences[currHash].append((kmer,[index]))
+        else:
+            occurrences[currHash] = [(kmer,[index])]
+
+    L1,L2,L3 = [],[],[]
+    for results in occurrences.values():
+        for kmer, locations in results:
+            if(len(locations) >= f):
+                kmerString = kmer
+                L1.append(kmerString)
+                L2.append(locations)
+                L3.append(0)
+                for i in "ATGC":
+                    if(i == kmer[x]):
+                        continue
+                    kmerMutated = list(kmer[:])
+                    kmerMutated[x] = i
+                    kmerMutated = "".join(kmerMutated)
+                    currHash = getHashStr(kmerMutated,q)
+                    if(currHash in occurrences):
+                        for i in range(len(occurrences[currHash])):
+                            if(kmerMutated == occurrences[currHash][i][0]):
+                                L3[-1] += len(occurrences[currHash][i][1])
+                                break
     return L1,L2,L3
 
 
@@ -150,62 +226,59 @@ def ksearch(S,k,f,x):
 
     Discussion: Add analysis here
     """
-    assert(x < k)
-
+    q = 472884059     #just over 2^60, a prime, chosen so that all computations are kept below 64 bit precision 
+    global powers 
+    powers = tuple(pow(4,i,q) for i in reversed(range(k)))
+    bm = pow(4,k,q)
     occurrences = {}     #initialise empty dictionary
-    nucleotides = ('A','T', 'G', 'C')
-    S = [toNumeral(c) for c in S if c in nucleotides]   #unknown nucleotides are sometime transcribed by using a different letter, this is not supported
+    nucleotides = "ATGC"
+    S = [toNumeral(c) for c in S if c in nucleotides]
     length=len(S)
     if(length < k):
         return [],[],[]
+    print("Starting search")
 
-    q = nextPrime(min(4**k, length))    #there are at most 4**k different enantiometers, and at most O(length) different enantiometers
-    bm = pow(4,k,q)
     currHash = getHash(S[:k],q)
+    occurrences[currHash] = [(S[:k],[0])]
 
-    occurrences[currHash] = [KmerOccurrence(S[:k],0)]
-    collisions = 0
     for index in range(1,length-k+1):
         if(index%100000 == 0):          #delete this later
             print("Progress: ",(index / length)*100,"%")
-            print([len(t) for t in occurrences.values() if len(t)>1])
-
         currHash = (4*currHash- S[index-1]*bm + S[index-1+k]) % q
         kmer = S[index : index+k]
 
-        if currHash in occurrences:     #if hash already appears check if string has already appeared
-            appeared = False
-            for i,other in enumerate(occurrences[currHash]):
-                if(kmer == other.kmer):
-                    appeared = True
-                    occurrences[currHash][i].addLocation(index)     #add location to already existing kmer
+        if currHash in occurrences:     
+            toAdd = True                                #check for collisions
+            for i in range(len(occurrences[currHash])):
+                if(kmer == occurrences[currHash][i][0]):
+                    occurrences[currHash][i][1].append(index)
+                    toAdd = False
                     break
-                
-            if(not appeared):           #hash collision: add new kmer
-                occurrences[currHash] += [KmerOccurrence(kmer,index)]
+            
+            if(toAdd):
+                occurrences[currHash].append((kmer,[index]))
         else:
-            occurrences[currHash] = [KmerOccurrence(kmer,index)]
+            occurrences[currHash] = [(kmer,[index])]
 
-    L1,L2,L3=[],[],[]
-    for kmerOccurrences in occurrences.values():
-        for kmerOccurrence in kmerOccurrences:
-            if(kmerOccurrence.frequency >= f):
-                L1.append(kmerOccurrence.literal())
-                L2 += [kmerOccurrence.locations]
-
-                L3 += [0]
+    L1,L2,L3 = [],[],[]
+    for results in occurrences.values():
+        for kmer, locations in results:
+            if(len(locations) >= f):
+                kmerString = toLiteral(kmer)
+                L1.append(kmerString)
+                L2.append(locations)
+                L3.append(0)
                 for i in range(4):
-                    if(i == kmerOccurrence.kmer[x]):
+                    if(i == kmer[x]):
                         continue
-                    kmerMutated = kmerOccurrence.kmer[:]
+                    kmerMutated = kmer[:]
                     kmerMutated[x] = i
-                    kHash = getHash(kmerMutated,q)
-                    
-                    if(kHash in occurrences):
-                        for occurrence in occurrences[kHash]:
-                            if(occurrence.kmer == kmerMutated):
-                                L3[-1] += occurrence.frequency
-                                break  
+                    currHash = getHash(kmerMutated,q)
+                    if(currHash in occurrences):
+                        for i in range(len(occurrences[currHash])):
+                            if(kmerMutated == occurrences[currHash][i][0]):
+                                L3[-1] += len(occurrences[currHash][i][1])
+                                break
     return L1,L2,L3
 
 
@@ -216,8 +289,11 @@ if __name__=='__main__':
     for seq_record in SeqIO.parse("genomes/sequence.fasta", "fasta"):
         S=seq_record.seq[:]
     S=S[:len(S)//4]    
-    print(len(S))
-    k = int(sys.argv[1])
-    f = int(sys.argv[2])
-    x = int(sys.argv[3])
-    L1,L2,L3=ksearchv2(S,k,f,x)
+    k=2
+    f=1000
+    x=0
+    if(len(sys.argv) == 4):
+        k = int(sys.argv[1])
+        f = int(sys.argv[2])
+        x = int(sys.argv[3])
+    L1,L2,L3=ksearchstr(S,k,f,x)
