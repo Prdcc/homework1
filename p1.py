@@ -1,9 +1,8 @@
 """M345SC Homework 1, part 1
-Your name and CID here
+01210716
 """
-from collections import namedtuple
-from Bio import SeqIO       #only used to read genome, delete before handing in
-
+from Bio import SeqIO       #only used to read genome
+import sys
 
 class KmerOccurrence:
     def __init__(self,kmer,pos):
@@ -63,6 +62,7 @@ def toNumeral(char):
         return 2
     elif(char == 'C'):
         return 3
+    raise ValueError("Nucleotide %c not recognised, should be one of A,T,G,C"%char)
 
 def toLiteral(intTuple):
     s=""
@@ -86,6 +86,50 @@ def getHash(intTuple, q):
     currHash = currHash % q
     return currHash
 
+
+
+def ksearchv2(S,k,f,x):
+    occurrences = {}     #initialise empty dictionary
+    nucleotides = "ATGC"
+    S = "".join([c for c in S if c in nucleotides])
+    length=len(S)
+    if(length < k):
+        return [],[],[]
+    print("starting search")
+    occurrences[S[:k]] = [0]
+    for index in range(1,length-k+1):
+        if(index%100000 == 0):          #delete this later
+            print("Progress: ",(index / length)*100,"%")
+
+        kmer = S[index : index+k]
+
+        if kmer in occurrences:     #if kmer has already appeared add location
+            occurrences[kmer].append(index)
+        else:
+            occurrences[kmer] = [index]
+
+    L1,L2,L3=[],[],[]
+    for kmer in occurrences:
+        frequency = len(occurrences[kmer])
+        if(frequency >= f):
+            L1.append(kmer)
+            L2 += [occurrences[kmer]]
+
+            L3.append(0)
+            for i in "ATGC":
+                if(i == kmer[x]):
+                    continue
+                kmerMutated = list(kmer)
+                kmerMutated[x] = i
+                
+                if("".join(kmerMutated) in occurrences):
+                    L3[-1] += len(occurrences[kmer])
+                    break  
+    return L1,L2,L3
+
+
+
+
 def ksearch(S,k,f,x):
     """
     Search for frequently-occurring k-mers within a DNA sequence
@@ -106,25 +150,28 @@ def ksearch(S,k,f,x):
 
     Discussion: Add analysis here
     """
-    assert(x <= f)
+    assert(x < k)
+
+    occurrences = {}     #initialise empty dictionary
+    nucleotides = ('A','T', 'G', 'C')
+    S = [toNumeral(c) for c in S if c in nucleotides]   #unknown nucleotides are sometime transcribed by using a different letter, this is not supported
     length=len(S)
     if(length < k):
         return [],[],[]
 
-    q = nextPrime(length)
-    occurrences = {}     #initialise empty dictionary
-    numeralS = [toNumeral(c) for c in S]
-
+    q = nextPrime(min(4**k, length))    #there are at most 4**k different enantiometers, and at most O(length) different enantiometers
     bm = pow(4,k,q)
-    currHash = getHash(numeralS[:k],q)
+    currHash = getHash(S[:k],q)
 
-    occurrences[currHash] = [KmerOccurrence(numeralS[:k],0)]
-
+    occurrences[currHash] = [KmerOccurrence(S[:k],0)]
+    collisions = 0
     for index in range(1,length-k+1):
-        if(index%100000 == 0):
+        if(index%100000 == 0):          #delete this later
             print("Progress: ",(index / length)*100,"%")
-        currHash = (4*currHash- numeralS[index-1]*bm + numeralS[index-1+k]) % q
-        kmer = numeralS[index : index+k]
+            print([len(t) for t in occurrences.values() if len(t)>1])
+
+        currHash = (4*currHash- S[index-1]*bm + S[index-1+k]) % q
+        kmer = S[index : index+k]
 
         if currHash in occurrences:     #if hash already appears check if string has already appeared
             appeared = False
@@ -163,15 +210,14 @@ def ksearch(S,k,f,x):
 
 
 
-
 if __name__=='__main__':
     #Sample input and function call. Use/modify if/as needed
     S=""
-    length=1000000
     for seq_record in SeqIO.parse("genomes/sequence.fasta", "fasta"):
         S=seq_record.seq[:]
-    #print(S)
-    k=20
-    x=0
-    f=2
-    L1,L2,L3=ksearch(S,k,f,x)
+    S=S[:len(S)//4]    
+    print(len(S))
+    k = int(sys.argv[1])
+    f = int(sys.argv[2])
+    x = int(sys.argv[3])
+    L1,L2,L3=ksearchv2(S,k,f,x)
