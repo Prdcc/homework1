@@ -1,7 +1,7 @@
 """M345SC Homework 1, part 1
 01210716
+Enrico Ancilotto
 """
-from Bio import SeqIO       #only used to read genome
 import sys          #used to access command-line arguments and byte size of objects
 
 def toNumeral(char):
@@ -251,17 +251,64 @@ def ksearch(S,k,f,x,debug=False,sanitise=False):
     L3: list containing the number of point-x mutations for each k-mer in L1.
 
     Discussion: 
-    The algorithm first sanitises the input string (if a nucleotide is unknown this may be written by using a letter other than "ATGC"). The data is stored in a dictionary with the following structure: {"kmer": [list of locations of kmer]}. The first kmer is added to the dictionary and then the code moves along the strand adding every location. Once this is done it starts computing L1,L2,L3. It iterates through the values in the dictionary (discarding those whose frequency is less than the cutoff), first appending the kmer and its locations to L1 and L2, then iterating through all possible point-x mutations and adding their frequency to L3.
+    The algorithm first sanitises the input string (if a nucleotide is unknown 
+    this may be written by using a letter other than "ATGC"). The data is stored 
+    in a dictionary with the following structure: {"kmer": [list of locations of
+    kmer]}. The first kmer is added to the dictionary and then the code moves 
+    along the strand adding every location. Once this is done it starts 
+    computing L1,L2,L3. It iterates through the values in the dictionary 
+    (discarding those whose frequency is less than the cutoff), first appending
+    the kmer and its locations to L1 and L2, then iterating through all 
+    possible point-x mutations and adding their frequency to L3.
 
     Running time:
-    Let N be the length of the DNA strand. Sanitising the string is an O(N) operation, but it is still relatively quick (it can also be removed if the string S is known to be already sanitised), so I'm going to ignore this factor. The main loop executes N-k times and (ignoring the debugging print statements which only get executed every 300'000 iterations) each loop has a running time of O(k): accesses to the dictionary are constant time as the implementation of hash that python uses is constant as long as the string length isn't too long, ie below a few hundred characters; this means that the only non constant term is the allocation of kmer which is an O(k) process, even if the allocation isn't spelled out as in the code below Python will have to take an equivalent step, so there is no way to avoid this. Finally we have an array allocation or creation at each step. So the O time estimate for the main loop is O((N-k)k)=O(Nk) as k<<N.
+    Let N be the length of the DNA strand. Sanitising the string is an O(N) 
+    operation, but it is still relatively quick (it can also be removed if the 
+    string S is known to be already sanitised), so I'm going to ignore this 
+    factor. The main loop executes N-k times and (ignoring the debugging print 
+    statements which only get executed every 300'000 iterations) each loop has a
+    running time of O(k): accesses to the dictionary are constant time as the 
+    implementation of hash that python uses is constant as long as the string 
+    length isn't too long, ie below a few hundred characters; this means that 
+    the only non constant term is the allocation of kmer which is an O(k) 
+    process, even if the allocation isn't spelled out as in the code below Python 
+    will have to take an equivalent step, so there is no way to avoid this. 
+    Finally we have an array allocation or creation at each step. So the O time 
+    estimate for the main loop is O((N-k)k)=O(Nk) as k<<N.
 
-    The second loop iterates about min(4^k, N-k). If the frequency is above the desired threshold, each loop takes a further O(k) iterations as it has to manipulate k long strings. So in the worst case scenario (f=1, each kmer only appears once) it will take O((N-k)k) time. However, it is far more likely to need much, much less, as it is unlikely that f=1 is ever an interesting case, and for k large we will have few matches (for example there ar only 2 sequences longer than 200 in the first 10'000'000bp of the genome of Arabidopsis thaliana (genome downloaded from https://www.ncbi.nlm.nih.gov/genome/?term=Arabidopsis+thaliana)). So in practice the final computation is much faster than the initial one. This means that the expected execution time is O(Nk) which is in line with the best known algorithms (although this implementation has much higher constants and memory usage).
+    The second loop iterates about min(4^k, N-k). If the frequency is above the 
+    desired threshold, each loop takes a further O(k) iterations as it has to 
+    manipulate k long strings. So in the worst case scenario (f=1, each kmer 
+    only appears once) it will take O((N-k)k) time. However, it is far more 
+    likely to need much, much less, as it is unlikely that f=1 is ever an 
+    interesting case, and for k large we will have few matches (for example 
+    there are only 2 sequences longer than 200 in the first 10'000'000bp of the 
+    genome of Arabidopsis thaliana (genome downloaded from https://www.ncbi.nlm.nih.gov/genome/?term=Arabidopsis+thaliana)). 
+    So in practice the final computation is much faster than the initial one. 
+    This means that the expected execution time is O(Nk) which is in line with 
+    the best known algorithms (although this implementation has much higher 
+    constants and memory usage).
 
     Explanation of development choices:
-    The algorithm was developed with a small k kept in mind: most real world applications are limited to double digit applications (https://www.cbcb.umd.edu/software/jellyfish/ for example was limited to k<=31 until recently). In any case if larger values are needed a better approach would be to first find frequent k'mers where k'<<k and then performing the search through those possible matches. This drastically reduces the memory requirements. Better, more complex, data structures are also needed to hold the data (for example a bloom filter) and this felt out of scope. 
+    The algorithm was developed with a small k kept in mind: most real world 
+    applications are limited to double digit applications (https://www.cbcb.umd.edu/software/jellyfish/ 
+    for example was limited to k<=31 until recently). In any case if larger 
+    values are needed a better approach would be to first find frequent k'mers 
+    where k'<<k and then performing the search through those possible matches. 
+    This drastically reduces the memory requirements. Better, more complex, data 
+    structures are also needed to hold the data (for example a bloom filter) and 
+    this felt out of scope. 
     
-    I implemented two versions of Rabin-Karp but in practice they where slower and more memory intensive than this simple dictionary search: the overhead of having to store the kmer string (again, implementing a proper hash table with a good way to handle hash collisions felt out of scope) and the inherit slowness of purely pythonic functions when compared to wrapped C/Fortran means that the dictionary solution worked best. The implementations are in ksearchNum and ksearchStr: the first one converts the string at the very start into a list of numbers 0->3 and then does all the computations, in the second case the string is kept as such with conversion only happenning when needed.
+    I implemented two versions of Rabin-Karp but in practice they where slower 
+    and more memory intensive than this simple dictionary search: the overhead 
+    of having to store the kmer string (again, implementing a proper hash table 
+    with a good way to handle hash collisions felt out of scope) and the inherit 
+    slowness of purely pythonic functions when compared to wrapped C/Fortran code
+    means that the dictionary solution worked best. The implementations are in 
+    ksearchNum and ksearchStr: the first one converts the string at the very 
+    start into a list of numbers 0->3 and then does all the computations, in the 
+    second case the string is kept as such with conversion only happenning when 
+    needed.
     """
     if(x >= k):
         raise ValueError("x should be less than k, value of x: %d\tValue of k: %d"% (x,k))
@@ -308,13 +355,10 @@ def ksearch(S,k,f,x,debug=False,sanitise=False):
 
 if __name__=='__main__':
     #Sample input and function call. Use/modify if/as needed
-    S=""
-    for seq_record in SeqIO.parse("genomes/sequence.fasta", "fasta"):
-        S=seq_record.seq[:]
-
-    S=S[:len(S)//10]    
+    S="ATGCGCGTGTTGTCGCATGCTAGCTAGCTAGCATGCTAGCTAGCTAGACGCGCGATATGATCATTACGATGCGCGAGAGCGAGAGTCTCTCTAGACTGATCGTAGCAAAAAAAAAA"
+    
     k=3
-    f=1000
+    f=2
     x=0
     method = ksearch
     if(len(sys.argv) == 5):#usage: python p1.py k f x {d,s,n}
@@ -331,3 +375,4 @@ if __name__=='__main__':
             method = ksearchNum
 
     L1,L2,L3=method(S,k,f,x)
+    
