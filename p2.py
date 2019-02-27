@@ -115,16 +115,19 @@ def plotNMP(dfN,dfM,dfP,dfMP, saveNumber=-1):
     sns.regplot(y='Execution time', x='N', data=dfN, ax=axes[0], robust=True)
     sns.regplot(y='Execution time', x='M', data=dfM, ax=axes[1], robust=True)
     sns.regplot(y='Execution time', x='P', data=dfP, ax=axes[2], robust=True)
-    f.suptitle("Execution time for various values of the parameters")
+    f.suptitle("Enrico Ancilotto - plotNMP\nExecution time for various values of the parameters")
     plt.savefig("fig"+str(saveNumber)+".png", bbox_inches='tight')
+    plt.show()
 
-    sns.lmplot(y='Execution time', x='M', hue='M - P', data=dfMP, robust=True).fig.suptitle("Execution time as M-P is fixed and M is varied")
+    sns.lmplot(y='Execution time', x='M', hue='M - P', data=dfMP, robust=True).fig.suptitle("Enrico Ancilotto - plotNMP\nExecution time as M-P is fixed and M is varied")
     plt.savefig("fig"+str(saveNumber+1)+".png", bbox_inches='tight')
+    plt.show()
 
 def plotG(dfG, saveNumber=-1):
     plt.clf()
-    sns.regplot(y='Execution time', x='G', data=dfG, robust=True).set_title("Execution time against various number of matching elements")
+    sns.regplot(y='Execution time', x='G', data=dfG, robust=True).set_title("Enrico Ancilotto - plotG\nExecution time against various number of matching elements")
     plt.savefig("fig"+str(saveNumber)+".png", bbox_inches='tight')
+    plt.show()
 
 
 
